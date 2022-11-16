@@ -1,94 +1,122 @@
-const canvas = document.getElementById('canvas1');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+window.addEventListener('load', function () {
+    const canvas = document.getElementById('canvas1');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-let gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-gradient.addColorStop(0, 'red');
-gradient.addColorStop(0.2, 'yellow');
-gradient.addColorStop(0.4, 'green');
-gradient.addColorStop(0.6, 'cyan');
-gradient.addColorStop(0.8, 'blue');
-gradient.addColorStop(1, 'magenta');
-
-class Symbol {
-  constructor(x, y, fontSize, canvasHeight) {
-    this.characters = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    this.x = x;
-    this.y = y;
-    this.fontSize = fontSize;
-    this.text = 'A';
-    this.canvasHeight = canvasHeight;
-  }
-  draw(context) {
-    this.text = this.characters.charAt(Math.floor(Math.random() * this.characters.length));
-    context.fillStyle = 'white';
-    context.fillText(this.text, this.x * this.fontSize, this.y * this.fontSize);
-    if (this.y * this.fontSize > this.canvasHeight && Math.random() > 0.97) {
-      this.y = 0;
+    class Particle {
+        constructor(effect, x, y, color) {
+            this.effect = effect;
+            this.x = this.originX = x;
+            this.y = this.originY = y;
+            this.size = 2;
+            this.color = color;
+            this.dx = 0;
+            this.dy = 0;
+            this.vx = 0;
+            this.vy = 0;
+            this.force = 0;
+            this.angle = 0;
+            this.distance = 0;
+            this.friction = 0.98;
+            this.ease = 0.2;
+        }
+        update() {
+            this.dx = this.effect.mouse.x - this.x;
+            this.dy = this.effect.mouse.y - this.y;
+            this.distance = this.dx * this.dx + this.dy * this.dy;
+            this.force = -this.effect.mouse.radius / this.distance;
+            if (this.distance < this.effect.mouse.radius) {
+                this.angle = Math.atan2(this.dy, this.dx);
+                this.vx += this.force * Math.cos(this.angle);
+                this.vy += this.force * Math.sin(this.angle);
+            }
+            this.x += (this.vx *= this.friction) + (this.originX - this.x) * this.ease;
+            this.y += (this.vy *= this.friction) + (this.originY - this.y) * this.ease;
+        }
     }
-    else {
-      this.y += 0.9;
+
+    class Effect {
+        constructor(width, height) {
+            this.width = width;
+            this.height = height;
+            this.image = document.getElementById('image');
+            this.centerX = this.width / 2;
+            this.centerY = this.height / 2;
+            this.x = this.centerX - this.image.width / 2;
+            this.y = this.centerY - this.image.height / 2;
+            this.particles = [];
+            this.gap = 2;
+            this.mouse = {
+                radius: 5000,
+                x: this.centerX,
+                y: this.centerY
+            }
+            window.addEventListener("mousemove", event => {
+                this.mouse.x = event.x;
+                this.mouse.y = event.y;
+            });
+
+            window.addEventListener("touchstart", event => {
+                this.mouse.x = event.changedTouches[0].clientX;
+                this.mouse.y = event.changedTouches[0].clientY;
+            }, false);
+
+            window.addEventListener("touchmove", event => {
+                event.preventDefault();
+                this.mouse.x = event.targetTouches[0].clientX;
+                this.mouse.y = event.targetTouches[0].clientY;
+            }, false);
+
+            window.addEventListener("touchend", event => {
+                event.preventDefault();
+                this.mouse.x = 0;
+                this.mouse.y = 0;
+            }, false);
+        }
+        init(context) {
+            context.drawImage(this.image, this.x, this.y);
+            var pixels = context.getImageData(0, 0, this.width, this.height).data;
+            var index;
+            for (var y = 0; y < this.height; y += this.gap) {
+                for (var x = 0; x < this.width; x += this.gap) {
+                    index = (y * this.width + x) * 4;
+                    const red = pixels[index];
+                    const green = pixels[index + 1];
+                    const blue = pixels[index + 2];
+                    const color = 'rgb(' + red + ',' + green + ',' + blue + ')';
+
+                    const alpha = pixels[index + 3];
+                    if (alpha > 0) {
+                        this.particles.push(new Particle(this, x, y, color));
+                    }
+                }
+            }
+            context.clearRect(0, 0, this.width, this.height);
+        }
+        update() {
+            for (var i = 0; i < this.particles.length; i++) {
+                this.particles[i].update();
+            }
+        }
+        render(context) {
+            context.clearRect(0, 0, this.width, this.height);
+            for (var i = 0; i < this.particles.length; i++) {
+                var p = this.particles[i];
+                context.fillStyle = p.color;
+                context.fillRect(p.x, p.y, p.size, p.size);
+            }
+        }
     }
-  }
-}
 
-class Effect {
-  constructor(canvasWidth, canvasHeight) {
-    this.fontSize = 16;
-    this.canvasWidth = canvasWidth;
-    this.canvasHeight = canvasHeight;
-    this.columns = this.canvasWidth / this.fontSize;
-    this.symbols = [];
-    this.#initialize();
-  }
-  #initialize() {
-    for (let i = 0; i < this.columns; i++) {
-      this.symbols[i] = new Symbol(i, 0, this.fontSize, this.canvasHeight);
+    const effect = new Effect(canvas.width, canvas.height);
+    effect.init(ctx);
+
+    function animate() {
+        effect.update();
+        effect.render(ctx);
+        requestAnimationFrame(animate);
     }
-  }
-  resize(width, height) {
-    this.canvasWidth = width;
-    this.canvasHeight = height;
-    this.columns = this.canvasWidth / this.fontSize;
-    this.symbols = [];
-    this.#initialize();
-  }
-}
+    animate();
 
-const effect = new Effect(canvas.width, canvas.height);
-let lastTime = 0;
-const fps = 26;
-const nextFrame = 1000 / fps;
-let timer = 0;
-
-function animate(timeStamp) {
-  const deltaTime = timeStamp - lastTime;
-  lastTime = timeStamp;
-  if (timer > nextFrame) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(0,0,0,0.05)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = effect.fontSize + 'px monospace';
-    ctx.fillStyle = gradient;
-    effect.symbols.forEach(symbol => symbol.draw(ctx));
-  } else {
-    timer += deltaTime;
-  }
-  requestAnimationFrame(animate);
-}
-
-animate(0);
-
-window.addEventListener('resize', function () {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  effect.resize(canvas.width, canvas.height);
-  gradient = createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, 'red');
-  gradient.addColorStop(0.2, 'yellow');
-  gradient.addColorStop(0.4, 'green');
-  gradient.addColorStop(0.6, 'cyan');
-  gradient.addColorStop(0.8, 'blue');
-  gradient.addColorStop(1, 'magenta');
-})
+});
