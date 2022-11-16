@@ -1,65 +1,94 @@
-const canvas = document.getElementById('sandbox');
+const canvas = document.getElementById('canvas1');
+const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const ctx = canvas.getContext('2d');
+let gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+gradient.addColorStop(0, 'red');
+gradient.addColorStop(0.2, 'yellow');
+gradient.addColorStop(0.4, 'green');
+gradient.addColorStop(0.6, 'cyan');
+gradient.addColorStop(0.8, 'blue');
+gradient.addColorStop(1, 'magenta');
 
-function Circle (x, y, r, c) {
- this.x = x;
- this.y = y;
- this.r = r;
- this.c = c;
- 
- this.dx = Math.floor(Math.random() * 4) + 1;
- this.dx *= Math.floor(Math.random() * 2) == 1 ? 1 : -1;
- this.dy = Math.floor(Math.random() * 4) + 1;
- this.dy *= Math.floor(Math.random() * 2) == 1 ? 1 : -1;
- 
- this.draw = function () {
-  ctx.beginPath();
-  ctx.fillStyle = this.c;
-  ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-  ctx.fill();
- }
- 
- this.animate = function () {
-  this.x += this.dx;
-  this.y += this.dy;
-  
-  if (this.x + this.r > canvas.width || this.x - this.r < 0) {
-   this.dx = -this.dx;
+class Symbol {
+  constructor(x, y, fontSize, canvasHeight) {
+    this.characters = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    this.x = x;
+    this.y = y;
+    this.fontSize = fontSize;
+    this.text = 'A';
+    this.canvasHeight = canvasHeight;
   }
-  
-  if (this.y + this.r > canvas.height || this.y - this.r < 0) {
-   this.dy = -this.dy;
+  draw(context) {
+    this.text = this.characters.charAt(Math.floor(Math.random() * this.characters.length));
+    context.fillStyle = 'white';
+    context.fillText(this.text, this.x * this.fontSize, this.y * this.fontSize);
+    if (this.y * this.fontSize > this.canvasHeight && Math.random() > 0.97) {
+      this.y = 0;
+    }
+    else {
+      this.y += 0.9;
+    }
   }
-  
-  this.draw();
- }
 }
 
-const balls = [];
-for (let i = 0; i < 20; i++) {
- let r = Math.floor(Math.random() * 30) + 15;
- let x = Math.random() * (canvas.width - r * 2) + r;
- let y = Math.random() * (canvas.height - r * 2) + r;
- let c = 'red';
- balls.push(new Circle(x, y, r, c));
+class Effect {
+  constructor(canvasWidth, canvasHeight) {
+    this.fontSize = 16;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.columns = this.canvasWidth / this.fontSize;
+    this.symbols = [];
+    this.#initialize();
+  }
+  #initialize() {
+    for (let i = 0; i < this.columns; i++) {
+      this.symbols[i] = new Symbol(i, 0, this.fontSize, this.canvasHeight);
+    }
+  }
+  resize(width, height) {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.columns = this.canvasWidth / this.fontSize;
+    this.symbols = [];
+    this.#initialize();
+  }
 }
-/* BONUS FEATURE */
-canvas.addEventListener('click', function (e) {
- let r = Math.floor(Math.random() * 30) + 15;
- balls.push(new Circle(e.clientX, e.clientY, r, 'blue'));
-});
 
-function Update () {
- ctx.clearRect(0, 0, canvas.width, canvas.height);
- 
- for (let i = 0; i < balls.length; i++) {
-  let ball = balls[i];
-  ball.animate();
- }
- 
- requestAnimationFrame(Update);
+const effect = new Effect(canvas.width, canvas.height);
+let lastTime = 0;
+const fps = 26;
+const nextFrame = 1000 / fps;
+let timer = 0;
+
+function animate(timeStamp) {
+  const deltaTime = timeStamp - lastTime;
+  lastTime = timeStamp;
+  if (timer > nextFrame) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = effect.fontSize + 'px monospace';
+    ctx.fillStyle = gradient;
+    effect.symbols.forEach(symbol => symbol.draw(ctx));
+  } else {
+    timer += deltaTime;
+  }
+  requestAnimationFrame(animate);
 }
-Update();
+
+animate(0);
+
+window.addEventListener('resize', function () {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  effect.resize(canvas.width, canvas.height);
+  gradient = createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, 'red');
+  gradient.addColorStop(0.2, 'yellow');
+  gradient.addColorStop(0.4, 'green');
+  gradient.addColorStop(0.6, 'cyan');
+  gradient.addColorStop(0.8, 'blue');
+  gradient.addColorStop(1, 'magenta');
+})
